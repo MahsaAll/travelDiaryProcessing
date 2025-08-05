@@ -14,9 +14,9 @@ library(stringr)
 library(knitr)
 library(kableExtra)
 
-trips      <- read_csv("~/Dev/JIBE/travelDiaryProcessing/data/Melbourne/trips.csv")
-persons    <- read_csv("~/Dev/JIBE/travelDiaryProcessing/data/Melbourne/persons.csv")
-households <- read_csv("~/Dev/JIBE/travelDiaryProcessing/data/Melbourne/households.csv")
+trips      <- read_csv("~/Dev/JIBE/Repo/travelDiaryProcessing/data/Melbourne/trips.csv")
+persons    <- read_csv("~/Dev/JIBE/Repo/travelDiaryProcessing/data/Melbourne/persons.csv")
+households <- read_csv("~/Dev/JIBE/Repo/travelDiaryProcessing/data/Melbourne/households.csv")
 
 ```
 
@@ -137,15 +137,18 @@ categories <- c("car_ownership", "student_status", "employment_status", "age_gro
                 "demographic_status", "demographic_and_car_status")
 
 for (cat in categories) {
-  cat("\n\n### Number of Trips by ", str_to_sentence(gsub("_", " ", cat)), "\n\n")
-
+  format <- gsub("_", " ", cat)
+  cat("\n\n### Number of trips by ", format, " and purpose\n\n")
+  
   table <- trip_final %>%
-    group_by(.data[[cat]]) %>%
-    summarise(n_trips = n(), .groups = "drop") %>% 
-    rename(
-      !!str_to_sentence(gsub("_", " ", cat)) := .data[[cat]],
-      `Total trips` = n_trips
-    )
+    group_by(level = .data[[cat]], full_purpose) %>%
+    summarise(n_trips = n(), .groups = "drop") %>%
+    pivot_wider(
+      names_from   = full_purpose,
+      values_from  = n_trips,
+      values_fill  = list(n_trips = 0)
+    ) %>%
+    rename(!!format := level)
 
   # Print table with controlled width and height
   print(
