@@ -14,9 +14,9 @@ library(stringr)
 library(knitr)
 library(kableExtra)
 
-trips      <- read_csv("./data/Melbourne/trips.csv")
-persons    <- read_csv("./data/Melbourne/households.csv")
-households <- read_csv("./data/Melbourne/persons.csv")
+trips      <- read_csv("~/Dev/JIBE/travelDiaryProcessing/data/Melbourne/trips.csv")
+persons    <- read_csv("~/Dev/JIBE/travelDiaryProcessing/data/Melbourne/persons.csv")
+households <- read_csv("~/Dev/JIBE/travelDiaryProcessing/data/Melbourne/households.csv")
 
 ```
 
@@ -57,26 +57,63 @@ trips <- trips %>%
   )
 
 # Compute trip lengths
-trip <- trips %>%
+trips <- trips %>%
   mutate(across(dist1:dist9, ~ as.numeric(.x) %>% replace_na(0))) %>%
   rowwise() %>%
   mutate(dist = sum(c_across(dist1:dist9), na.rm = TRUE)) %>%
   ungroup()
 
 # Create clean trips data
-trip_final <- trip %>%  
+trip_final <- trips %>%  
   filter(
     full_purpose %in% c("HBW", "HBE", "HBS", "HBA", "HBO", "HBR", "NHBW", "NHBO"), 
     dist < 25
          ) %>% 
+  filter(mainact != "Other") %>% 
+  filter(studying != "Something Else") %>% 
   mutate(employment_status = ifelse(mainact %in% c("Casual Work", "Full-time Work", "Part-time Work"),
-                             "Employed", "Unemployed")) %>% 
+                             "Employed", "Not employed")) %>% 
+  mutate(student_status = ifelse(studying %in% c("Full-time TAFE/Uni", "Part-time TAFE/Uni", 
+                                                   "Primary", "Secondary"),
+                             "Student", "Not student")) %>% 
   select(tripid, purpose, full_purpose, dist, age,
-         employment_status,
-         student_status = studying,
+         employment_status, student_status ,
          car_ownership= carCategory,  
          gender = sex, 
          age_group = age_group)
+
+trip_final <- trip_final %>%
+  mutate(
+    demographic_status = case_when(
+      age_group == "0-17" ~ "Under 18",
+      age_group != "0-17" & employment_status == "Employed" & student_status == "Not student" ~ "Employed (not student)",
+      age_group != "0-17" & employment_status == "Not employed" & student_status == "Student" ~ "Student (not employed)",
+      age_group != "0-17" & employment_status == "Employed" & student_status == "Student" ~ "Employed and student",
+      age_group != "0-17" & employment_status == "Not employed" & student_status == "Not student" ~ "Not employed, not student"
+    )
+  ) %>%
+  mutate(
+    demographic_and_car_status = case_when(
+      age_group == "0-17" ~ "Under 18",
+      age_group != "0-17" & employment_status == "Employed" & student_status == "Not student" &
+        car_ownership == "noCar" ~ "Employed (not student) without car",
+      age_group != "0-17" & employment_status == "Employed" & student_status == "Not student" & 
+        car_ownership != "noCar" ~ "Employed (not student) with car",
+      age_group != "0-17" & employment_status == "Not employed" & student_status == "Student" & 
+        car_ownership == "noCar" ~ "Student (not employed) without car",
+      age_group != "0-17" & employment_status == "Not employed" & student_status == "Student" & 
+        car_ownership != "noCar" ~ "Student (not employed) with car",
+      age_group != "0-17" & employment_status == "Employed" & student_status == "Student" & 
+        car_ownership == "noCar" ~ "Employed and student without car",
+      age_group != "0-17" & employment_status == "Employed" & student_status == "Student" & 
+        car_ownership != "noCar" ~ "Employed and student with car",
+      age_group != "0-17" & employment_status == "Not employed" & student_status == "Not student" & 
+        car_ownership == "noCar" ~ "Not employed, not student without carr",
+      age_group != "0-17" & employment_status == "Not employed" & student_status == "Not student" & 
+        car_ownership != "noCar" ~ "Not employed, not student with car"
+    )
+  )
+
 
 ``` 
 
@@ -96,7 +133,8 @@ This section presents summary tables showing the total number of trips observed 
 ```{r table box, results='asis', warning=FALSE, message=FALSE,}
 
 # Table of number of trips for each category
-categories <- c("car_ownership", "student_status", "employment_status", "age_group", "gender")
+categories <- c("car_ownership", "student_status", "employment_status", "age_group", "gender", 
+                "demographic_status", "demographic_and_car_status")
 
 for (cat in categories) {
   cat("\n\n### Number of Trips by ", str_to_sentence(gsub("_", " ", cat)), "\n\n")
@@ -136,7 +174,8 @@ This section presents a series of boxplots comparing trip distance distributions
 ```{r generate boxplots, warning=FALSE, message=FALSE, fig.width=12, fig.height=24, out.width='100%'}
 
 # Grid of travel distance boxplots for each category
-categories <- c("car_ownership", "student_status", "employment_status", "age_group", "gender")
+categories <- c("car_ownership", "student_status", "employment_status", "age_group", "gender", 
+                "demographic_status", "demographic_and_car_status")
 
 for (cat in categories) {
   cat("Trip distance by ", gsub("_", " ", cat))
