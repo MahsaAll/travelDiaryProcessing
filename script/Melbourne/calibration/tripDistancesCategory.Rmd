@@ -269,7 +269,7 @@ categories <- c("car_ownership", "age_group", "gender", "occupation", "demograph
 # Loop to create mean/median distance tables 
 for (cat in categories) {
   pretty <- gsub("_", " ", cat)
-  cat("\n\n### Trip distance statistics (mean, median, q25, q75) by ", pretty, " and purpose\n\n")
+  cat("\n\n### Trip distance statistics by ", pretty, " and purpose\n\n")
   
   summary_table <- trips_final %>% 
     group_by(level = .data[[cat]], full_purpose) %>%
